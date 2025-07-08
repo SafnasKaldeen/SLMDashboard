@@ -43,6 +43,9 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
   const batteryId =
     cabinet.bid && cabinet.bid.trim() !== "" ? cabinet.bid : null;
 
+  // Check charging status
+  const isCharging = cabinet.charger_online === 1 && hasBattery;
+
   return (
     <Card
       className={`${statusInfo.bgClass} ${
@@ -61,6 +64,21 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
             Cabinet #{cabinet.no}
           </CardTitle>
           <div className="flex items-center gap-2">
+            {/* Charging Status Badge */}
+            {cabinet.timestamp && (
+              <Badge
+                className={`text-white text-xs font-medium ${
+                  isCharging
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-slate-600 hover:bg-slate-700"
+                }`}
+              >
+                <Zap className="w-3 h-3 mr-1" />
+                {isCharging ? "Charging" : "Not Charging"}
+              </Badge>
+            )}
+
+            {/* Battery Status Badge */}
             {hasBattery ? (
               <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium">
                 <Battery className="w-3 h-3 mr-1" />
@@ -72,6 +90,7 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                 Empty
               </Badge>
             )}
+
             {anomalies.length > 0 && (
               <AlertTriangle className="w-4 h-4 lg:w-5 lg:h-5 text-red-400 animate-pulse" />
             )}

@@ -1,155 +1,235 @@
 export class AnomalyDetector {
   detectAnomalies(current, previous) {
-    if (!current || !previous || !current.timestamp) return []
-
     const anomalies = []
 
-    // Communication loss
+    if (!current || !current.timestamp) {
+      return anomalies
+    }
+
+    // Temperature anomalies
+    if (current.cell_temp > 60) {
+      anomalies.push({
+        type: "temperature",
+        severity: "critical",
+        reason: `Critical temperature: ${current.cell_temp}°C`,
+        message: "Temperature exceeds safe operating limits",
+      })
+    } else if (current.cell_temp > 50) {
+      anomalies.push({
+        type: "temperature",
+        severity: "high",
+        reason: `High temperature: ${current.cell_temp}°C`,
+        message: "Temperature is elevated",
+      })
+    }
+
+    // Battery level anomalies
+    if (current.battery < 10 && current.is_battery === 1) {
+      anomalies.push({
+        type: "battery",
+        severity: "critical",
+        reason: `Critical battery level: ${current.battery}%`,
+        message: "Battery level is critically low",
+      })
+    } else if (current.battery < 20 && current.is_battery === 1) {
+      anomalies.push({
+        type: "battery",
+        severity: "high",
+        reason: `Low battery level: ${current.battery}%`,
+        message: "Battery level is low",
+      })
+    }
+
+    // Voltage anomalies
+    if (current.v < 100 && current.is_battery === 1) {
+      anomalies.push({
+        type: "voltage",
+        severity: "high",
+        reason: `Low voltage: ${current.v}V`,
+        message: "Voltage is below normal operating range",
+      })
+    }
+
+    // Communication anomalies
     if (current.communication === 0) {
       anomalies.push({
-        type: "communication_loss",
+        type: "communication",
         severity: "high",
-        reason: "Communication lost with cabinet",
+        reason: "Communication lost",
+        message: "Cabinet is not responding to communication",
       })
     }
 
-    // Charger offline
-    if (current.charger_online === 0) {
+    // Charging anomalies
+    if (current.is_battery === 1 && current.battery < 80 && current.charger_online === 0) {
       anomalies.push({
-        type: "charger_offline",
+        type: "charging",
         severity: "medium",
-        reason: "Charger went offline",
+        reason: "Not charging when battery low",
+        message: "Battery needs charging but charger is offline",
       })
     }
 
-    // Temperature spike
-    if (Math.abs(current.cell_temp - previous.cell_temp) > 30) {
+    // Door anomalies
+    if (current.door === 1 && current.is_battery === 1) {
       anomalies.push({
-        type: "temp_spike",
-        severity: "high",
-        reason: `Temperature spike: ${Math.abs(current.cell_temp - previous.cell_temp)}°C change`,
-      })
-    }
-
-    // Battery level drop
-    if (current.battery - previous.battery < -20) {
-      anomalies.push({
-        type: "battery_drop",
+        type: "security",
         severity: "medium",
-        reason: `Battery level dropped by ${Math.abs(current.battery - previous.battery)}%`,
+        reason: "Door open with battery present",
+        message: "Security concern: door is open",
       })
     }
 
-    // Voltage variance (loose connection indicator)
-    const voltageValues = current.single_vol
-      ? current.single_vol
-          .split(",")
-          .map((v) => Number.parseFloat(v.trim()))
-          .filter((v) => !isNaN(v))
-      : []
-    const voltageVariance = voltageValues.length > 1 ? Math.max(...voltageValues) - Math.min(...voltageValues) : 0
-
-    if (voltageVariance > 0.8) {
-      anomalies.push({
-        type: "loose_connection",
-        severity: "critical",
-        reason: `Possible loose connection: ${voltageVariance.toFixed(2)}V variance`,
-      })
-    } else if (voltageVariance > 0.5) {
-      anomalies.push({
-        type: "voltage_instability",
-        severity: "high",
-        reason: `Voltage instability: ${voltageVariance.toFixed(2)}V variance`,
-      })
-    }
-
-    // Fire detection
+    // Fire safety anomalies
     if (current.out_fire === 1) {
       anomalies.push({
-        type: "fire_detected",
+        type: "fire",
         severity: "critical",
-        reason: "Fire detection system activated",
+        reason: "Fire safety alert",
+        message: "Fire suppression system activated",
       })
     }
 
-    // High urgency
-    if (current.urgency > 0) {
-      anomalies.push({
-        type: "high_urgency",
-        severity: "high",
-        reason: `Urgent attention required (Level ${current.urgency})`,
-      })
+    // Voltage variance anomalies (loose connection detection)
+    if (current.single_vol) {
+      const voltageValues = current.single_vol
+        .split(",")
+        .map((v) => Number.parseFloat(v.trim()))
+        .filter((v) => !isNaN(v))
+
+      if (voltageValues.length > 1) {
+        const variance = Math.max(...voltageValues) - Math.min(...voltageValues)
+        if (variance > 0.5) {
+          anomalies.push({
+            type: "connection",
+            severity: variance > 1.0 ? "high" : "medium",
+            reason: `High voltage variance: ${variance.toFixed(2)}V`,
+            message: "Possible loose connection detected",
+          })
+        }
+      }
+    }
+
+    // Comparative anomalies (if previous data exists)
+    if (previous && previous.timestamp) {
+      // Sudden temperature change
+      const tempDiff = Math.abs(current.cell_temp - previous.cell_temp)
+      if (tempDiff > 10) {
+        anomalies.push({
+          type: "temperature",
+          severity: "medium",
+          reason: `Sudden temperature change: ${tempDiff}°C`,
+          message: "Rapid temperature fluctuation detected",
+        })
+      }
+
+      // Sudden battery level drop
+      const batteryDiff = previous.battery - current.battery
+      if (batteryDiff > 20 && current.is_battery === 1) {
+        anomalies.push({
+          type: "battery",
+          severity: "high",
+          reason: `Rapid battery drain: ${batteryDiff}%`,
+          message: "Battery level dropped significantly",
+        })
+      }
+
+      // Voltage instability
+      const voltageDiff = Math.abs(current.v - previous.v)
+      if (voltageDiff > 50) {
+        anomalies.push({
+          type: "voltage",
+          severity: "medium",
+          reason: `Voltage instability: ${voltageDiff}V change`,
+          message: "Voltage fluctuation detected",
+        })
+      }
     }
 
     return anomalies
   }
 
-  getCabinetStatus(current, previous) {
-    if (!current || !current.timestamp) {
+  getCabinetStatus(cabinet, previous) {
+    const anomalies = this.detectAnomalies(cabinet, previous)
+
+    if (!cabinet.timestamp) {
       return {
+        status: "offline",
         bgClass: "bg-slate-800/50",
         borderClass: "border-slate-600",
-        status: "offline",
+        glow: "",
       }
     }
 
-    const anomalies = this.detectAnomalies(current, previous)
-
-    if (anomalies.some((a) => a.severity === "critical")) {
+    // Critical anomalies
+    const criticalAnomalies = anomalies.filter((a) => a.severity === "critical")
+    if (criticalAnomalies.length > 0) {
       return {
+        status: "critical",
         bgClass: "bg-red-900/20",
         borderClass: "border-red-500",
-        status: "critical",
         glow: "shadow-red-500/20 shadow-lg",
       }
     }
 
-    if (anomalies.some((a) => a.severity === "high")) {
+    // High severity anomalies
+    const highAnomalies = anomalies.filter((a) => a.severity === "high")
+    if (highAnomalies.length > 0) {
       return {
-        bgClass: "bg-red-900/10",
-        borderClass: "border-red-400",
-        status: "error",
-        glow: "shadow-red-400/15 shadow-md",
+        status: "warning",
+        bgClass: "bg-orange-900/20",
+        borderClass: "border-orange-500",
+        glow: "shadow-orange-500/20 shadow-lg",
       }
     }
 
-    if (anomalies.some((a) => a.severity === "medium")) {
+    // Medium severity anomalies
+    const mediumAnomalies = anomalies.filter((a) => a.severity === "medium")
+    if (mediumAnomalies.length > 0) {
       return {
+        status: "caution",
         bgClass: "bg-yellow-900/20",
         borderClass: "border-yellow-500",
-        status: "warning",
-        glow: "shadow-yellow-500/15 shadow-md",
+        glow: "",
       }
     }
 
-    // Overall health based on multiple factors
-    const healthScore =
-      (current.communication || 0) +
-      (current.charger_online || 0) +
-      (current.battery > 20 ? 1 : 0) +
-      (current.cell_temp < 50 ? 1 : 0)
-
-    if (healthScore >= 3) {
+    // Charging status
+    if (cabinet.charger_online === 1 && cabinet.is_battery === 1) {
       return {
+        status: "charging",
         bgClass: "bg-green-900/20",
         borderClass: "border-green-500",
-        status: "healthy",
-        glow: "shadow-green-500/15 shadow-md",
+        glow: "shadow-green-500/20 shadow-lg",
       }
     }
 
-    if (healthScore >= 2) {
+    // Normal operation
+    if (cabinet.is_battery === 1 && cabinet.communication === 1) {
       return {
-        bgClass: "bg-yellow-900/20",
-        borderClass: "border-yellow-600",
-        status: "warning",
+        status: "normal",
+        bgClass: "bg-blue-900/20",
+        borderClass: "border-blue-500",
+        glow: "",
       }
     }
 
+    // Empty cabinet
+    if (cabinet.is_battery === 0) {
+      return {
+        status: "empty",
+        bgClass: "bg-slate-800/50",
+        borderClass: "border-slate-500",
+        glow: "",
+      }
+    }
+
+    // Default
     return {
-      bgClass: "bg-red-900/20",
-      borderClass: "border-red-600",
-      status: "error",
+      status: "unknown",
+      bgClass: "bg-slate-800/50",
+      borderClass: "border-slate-600",
+      glow: "",
     }
   }
 }

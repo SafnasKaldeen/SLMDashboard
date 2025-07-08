@@ -4,12 +4,10 @@ import { useState, useEffect, useMemo } from "react";
 import { Upload } from "lucide-react";
 import * as Papa from "papaparse";
 import { Card, CardContent } from "@/components/ui/card";
-import { StationSelector } from "@/components/cabinet/StationSelector";
+import { CombinedFilters } from "@/components/cabinet/CombinedFilters";
 import { TimelineControls } from "@/components/cabinet/TimelineControls";
 import { CabinetGrid } from "@/components/cabinet/CabinetGrid";
 import { StatusLegend } from "@/components/cabinet/StatusLegend";
-import { LooseConnectionAnalyzer } from "@/components/cabinet/LooseConnectionAnalyzer";
-import { CabinetFilter } from "@/components/cabinet/CabinetFilter";
 import { AnomalyDetector } from "@/lib/anomaly-detector";
 
 const BatteryStationAnalyzer = () => {
@@ -278,66 +276,52 @@ const BatteryStationAnalyzer = () => {
 
         {data.length > 0 && (
           <>
-            {/* Controls Section - Improved Layout */}
-            <div className="space-y-6">
-              {/* Top Row - Station and Timeline */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <StationSelector
-                  stations={stations}
-                  selectedStation={selectedStation}
-                  onStationChange={setSelectedStation}
-                />
-
-                <TimelineControls
-                  timestamps={timestamps}
-                  currentTimestampIndex={currentTimestampIndex}
-                  currentTimestamp={currentTimestamp}
-                  isPlaying={isPlaying}
-                  playbackSpeed={playbackSpeed}
-                  onSliderChange={(value) => {
-                    const newIndex = value[0];
-                    setCurrentTimestampIndex(newIndex);
-                    setCurrentTimestamp(timestamps[newIndex]);
-                  }}
-                  onPlayToggle={() => setIsPlaying(!isPlaying)}
-                  onReset={() => {
-                    setCurrentTimestampIndex(0);
-                    setCurrentTimestamp(timestamps[0]);
-                    setIsPlaying(false);
-                  }}
-                  onSpeedChange={setPlaybackSpeed}
-                  onPrevious={goToPrevious}
-                  onNext={goToNext}
-                  canGoPrevious={currentTimestampIndex > 0}
-                  canGoNext={currentTimestampIndex < timestamps.length - 1}
-                />
-              </div>
-
-              {/* Bottom Row - Filters and Analysis */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <CabinetFilter
-                  selectedCabinets={selectedCabinets}
-                  onCabinetChange={setSelectedCabinets}
-                  filterType={filterType}
-                  onFilterTypeChange={setFilterType}
-                  currentData={currentData}
-                  previousData={previousData}
-                  anomalyDetector={anomalyDetector}
-                />
-
-                <LooseConnectionAnalyzer
-                  currentData={filteredCurrentData}
-                  historicalData={historicalData}
-                  anomalyDetector={anomalyDetector}
-                />
-              </div>
-            </div>
+            {/* Combined Filters */}
+            <CombinedFilters
+              stations={stations}
+              selectedStation={selectedStation}
+              onStationChange={setSelectedStation}
+              selectedCabinets={selectedCabinets}
+              onCabinetChange={setSelectedCabinets}
+              filterType={filterType}
+              onFilterTypeChange={setFilterType}
+              currentData={currentData}
+              previousData={previousData}
+              anomalyDetector={anomalyDetector}
+              historicalData={historicalData}
+              filteredCurrentData={filteredCurrentData}
+            />
 
             {/* Cabinet Grid */}
             <CabinetGrid
               currentData={filteredCurrentData}
               previousData={filteredPreviousData}
               anomalyDetector={anomalyDetector}
+            />
+
+            {/* Timeline Controls - Row Oriented */}
+            <TimelineControls
+              timestamps={timestamps}
+              currentTimestampIndex={currentTimestampIndex}
+              currentTimestamp={currentTimestamp}
+              isPlaying={isPlaying}
+              playbackSpeed={playbackSpeed}
+              onSliderChange={(value) => {
+                const newIndex = value[0];
+                setCurrentTimestampIndex(newIndex);
+                setCurrentTimestamp(timestamps[newIndex]);
+              }}
+              onPlayToggle={() => setIsPlaying(!isPlaying)}
+              onReset={() => {
+                setCurrentTimestampIndex(0);
+                setCurrentTimestamp(timestamps[0]);
+                setIsPlaying(false);
+              }}
+              onSpeedChange={setPlaybackSpeed}
+              onPrevious={goToPrevious}
+              onNext={goToNext}
+              canGoPrevious={currentTimestampIndex > 0}
+              canGoNext={currentTimestampIndex < timestamps.length - 1}
             />
           </>
         )}

@@ -1,35 +1,51 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
 import { CabinetCard } from "./CabinetCard";
 
 export function CabinetGrid({ currentData, previousData, anomalyDetector }) {
-  return (
-    <Card className=" border-slate-600/50 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="text-2xl text-center bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-          Cabinet Status Grid
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-3 gap-4">
-          {currentData.map((cabinet, index) => {
-            const previous = previousData[index];
-            const anomalies = anomalyDetector.detectAnomalies(
-              cabinet,
-              previous
-            );
-
-            return (
-              <CabinetCard
-                key={index}
-                cabinet={cabinet}
-                previous={previous}
-                anomalies={anomalies}
-                anomalyDetector={anomalyDetector}
-              />
-            );
-          })}
+  if (currentData.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-slate-400 text-lg">
+          No cabinets match the current filters
         </div>
-      </CardContent>
-    </Card>
+        <div className="text-slate-500 text-sm mt-2">
+          Try adjusting your filter settings
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-slate-200">
+          Cabinet Status Grid
+        </h2>
+        <div className="text-sm text-slate-400">
+          Showing {currentData.length} cabinet
+          {currentData.length !== 1 ? "s" : ""}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+        {currentData.map((cabinet) => {
+          const previous = previousData.find((p) => p.no === cabinet.no);
+          const anomalies = cabinet.timestamp
+            ? anomalyDetector.detectAnomalies(cabinet, previous)
+            : [];
+
+          return (
+            <CabinetCard
+              key={cabinet.no}
+              cabinet={cabinet}
+              previous={previous}
+              anomalies={anomalies}
+              anomalyDetector={anomalyDetector}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }

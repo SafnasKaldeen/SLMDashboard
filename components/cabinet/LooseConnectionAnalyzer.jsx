@@ -1,215 +1,251 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
+
+import { useMemo } from "react";
 import {
   Activity,
   AlertTriangle,
+  CheckCircle,
   TrendingUp,
-  Zap,
-  Thermometer,
-  Battery,
+  TrendingDown,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 export function LooseConnectionAnalyzer({
   currentData,
   historicalData,
   anomalyDetector,
 }) {
-  // Calculate overall connection health
-  const calculateOverallHealth = () => {
-    if (currentData.length === 0) return 0;
+  // Calculate connection health metrics
+  const connectionMetrics = useMemo(() => {
+    if (!currentData.length || !historicalData.length) {
+      return {
+        overallHealth: 0,
+        volatilityScore: 0,
+        anomalyCount: 0,
+        trendingIssues: [],
+      };
+    }
 
-    const healthScores = currentData.map((cabinet) => {
-      if (!cabinet.timestamp) return 0;
+    let totalAnomalies = 0;
+    let volatilitySum = 0;
+    let healthyConnections = 0;
+    const issueTypes = {};
 
-      const voltageValues = cabinet.single_vol
-        ? cabinet.single_vol
-            .split(",")
-            .map((v) => Number.parseFloat(v.trim()))
-            .filter((v) => !isNaN(v))
-        : [];
-      const voltageVariance =
-        voltageValues.length > 1
-          ? Math.max(...voltageValues) - Math.min(...voltageValues)
-          : 0;
+    currentData.forEach((cabinet) => {
+      if (!cabinet.timestamp) return;
 
-      return Math.max(10, Math.round(100 - voltageVariance * 50));
+      // Get historical data for this cabinet
+      const cabinetHistory = historicalData.filter((h) => h.no === cabinet.no);
+
+      if (cabinetHistory.length < 2) return;
+
+      // Calculate voltage volatility
+      const voltages = cabinetHistory.map((h) => h.v || 0);
+      const avgVoltage = voltages.reduce((a, b) => a + b, 0) / voltages.length;
+      const variance =
+        voltages.reduce((sum, v) => sum + Math.pow(v - avgVoltage, 2), 0) /
+        voltages.length;
+      const volatility = Math.sqrt(variance);
+
+      volatilitySum += volatility;
+
+      // Check for anomalies
+      const previousCabinet = cabinetHistory[cabinetHistory.length - 2];
+      const anomalies = anomalyDetector.detectAnomalies(
+        cabinet,
+        previousCabinet
+      );
+
+      totalAnomalies += anomalies.length;
+
+      // Track issue types
+      anomalies.forEach((anomaly) => {
+        issueTypes[anomaly.type] = (issueTypes[anomaly.type] || 0) + 1;
+      });
+
+      // Check connection health
+      if (
+        cabinet.communication === 1 &&
+        volatility < 5 &&
+        anomalies.length === 0
+      ) {
+        healthyConnections++;
+      }
     });
 
-    return Math.round(
-      healthScores.reduce((sum, score) => sum + score, 0) / healthScores.length
-    );
-  };
+    const avgVolatility =
+      currentData.length > 0 ? volatilitySum / currentData.length : 0;
+    const healthPercentage =
+      currentData.length > 0
+        ? (healthyConnections / currentData.length) * 100
+        : 0;
 
-  // Count unstable connections
-  const countUnstableConnections = () => {
-    return currentData.filter((cabinet) => {
-      if (!cabinet.timestamp) return false;
-
-      const voltageValues = cabinet.single_vol
-        ? cabinet.single_vol
-            .split(",")
-            .map((v) => Number.parseFloat(v.trim()))
-            .filter((v) => !isNaN(v))
-        : [];
-      const voltageVariance =
-        voltageValues.length > 1
-          ? Math.max(...voltageValues) - Math.min(...voltageValues)
-          : 0;
-
-      return voltageVariance > 0.5;
-    }).length;
-  };
-
-  // Count active anomalies
-  const countAnomalies = () => {
-    return currentData.filter((cabinet) => {
-      if (!cabinet.timestamp) return false;
-      return cabinet.urgency > 0 || cabinet.out_fire === 1;
-    }).length;
-  };
-
-  // Calculate additional metrics
-  const getMetrics = () => {
-    const activeCabinets = currentData.filter((c) => c.timestamp);
-    const chargingCabinets = activeCabinets.filter(
-      (c) => c.charger_online === 1
-    );
-    const highTempCabinets = activeCabinets.filter((c) => c.cell_temp > 40);
-    const lowBatteryCabinets = activeCabinets.filter((c) => c.battery < 30);
+    // Get trending issues
+    const trendingIssues = Object.entries(issueTypes)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([type, count]) => ({ type, count }));
 
     return {
-      active: activeCabinets.length,
-      charging: chargingCabinets.length,
-      highTemp: highTempCabinets.length,
-      lowBattery: lowBatteryCabinets.length,
+      overallHealth: Math.round(healthPercentage),
+      volatilityScore: Math.round(avgVolatility * 10) / 10,
+      anomalyCount: totalAnomalies,
+      trendingIssues,
     };
+  }, [currentData, historicalData, anomalyDetector]);
+
+  // Get health color
+  const getHealthColor = (health) => {
+    if (health >= 80) return "text-green-400";
+    if (health >= 60) return "text-yellow-400";
+    if (health >= 40) return "text-orange-400";
+    return "text-red-400";
   };
 
-  const overallHealth = calculateOverallHealth();
-  const unstableConnections = countUnstableConnections();
-  const activeAnomalies = countAnomalies();
-  const metrics = getMetrics();
+  const getHealthBgColor = (health) => {
+    if (health >= 80) return "bg-green-600";
+    if (health >= 60) return "bg-yellow-600";
+    if (health >= 40) return "bg-orange-600";
+    return "bg-red-600";
+  };
 
   return (
-    <Card className="border-slate-700">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg text-slate-200 flex items-center gap-2">
-          <Activity className="w-5 h-5" />
-          System Analysis
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Overall Health Score */}
+    <div className="space-y-4">
+      {/* Overall Health Score */}
+      <div className="p-4 bg-slate-700/50 rounded-lg border border-slate-600/50">
+        <div className="flex items-center gap-2 mb-3">
+          <Activity className="w-4 h-4 text-blue-400" />
+          <span className="text-sm font-medium text-slate-200">
+            Connection Health
+          </span>
+        </div>
+
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-slate-300">
-            <TrendingUp className="w-4 h-4" />
-            <span className="text-sm font-medium">Overall Health Score</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 bg-slate-600 rounded-full h-3">
-              <div
-                className={`h-3 rounded-full transition-all ${
-                  overallHealth >= 90
-                    ? "bg-green-500"
-                    : overallHealth >= 70
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-                }`}
-                style={{ width: `${overallHealth}%` }}
-              />
-            </div>
-            <span className="text-xl font-bold text-slate-100 min-w-[3rem]">
-              {overallHealth}%
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400">Overall Health</span>
+            <span
+              className={`text-sm font-bold ${getHealthColor(
+                connectionMetrics.overallHealth
+              )}`}
+            >
+              {connectionMetrics.overallHealth}%
             </span>
           </div>
-        </div>
 
-        {/* Key Metrics Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 bg-blue-900/30 rounded-lg border border-blue-500/40">
-            <div className="flex items-center gap-2 text-blue-200 mb-1">
-              <Activity className="w-3 h-3" />
-              <span className="text-xs font-medium">Active</span>
-            </div>
-            <div className="text-slate-100 font-mono text-lg">
-              {metrics.active}/12
-            </div>
-          </div>
+          <Progress value={connectionMetrics.overallHealth} className="h-2" />
 
-          <div className="p-3 bg-green-900/30 rounded-lg border border-green-500/40">
-            <div className="flex items-center gap-2 text-green-200 mb-1">
-              <Zap className="w-3 h-3" />
-              <span className="text-xs font-medium">Charging</span>
-            </div>
-            <div className="text-slate-100 font-mono text-lg">
-              {metrics.charging}
-            </div>
-          </div>
-
-          <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/40">
-            <div className="flex items-center gap-2 text-orange-200 mb-1">
-              <Thermometer className="w-3 h-3" />
-              <span className="text-xs font-medium">High Temp</span>
-            </div>
-            <div className="text-slate-100 font-mono text-lg">
-              {metrics.highTemp}
-            </div>
-          </div>
-
-          <div className="p-3 bg-yellow-900/30 rounded-lg border border-yellow-500/40">
-            <div className="flex items-center gap-2 text-yellow-200 mb-1">
-              <Battery className="w-3 h-3" />
-              <span className="text-xs font-medium">Low Battery</span>
-            </div>
-            <div className="text-slate-100 font-mono text-lg">
-              {metrics.lowBattery}
-            </div>
+          <div className="text-xs text-slate-400">
+            {connectionMetrics.overallHealth >= 80 &&
+              "Excellent connection quality"}
+            {connectionMetrics.overallHealth >= 60 &&
+              connectionMetrics.overallHealth < 80 &&
+              "Good connection quality"}
+            {connectionMetrics.overallHealth >= 40 &&
+              connectionMetrics.overallHealth < 60 &&
+              "Fair connection quality"}
+            {connectionMetrics.overallHealth < 40 && "Poor connection quality"}
           </div>
         </div>
+      </div>
 
-        {/* Connection Issues */}
-        <div className="space-y-3">
-          <div className="text-sm font-medium text-slate-300">
-            Connection Issues
-          </div>
-
-          <div className="p-3 bg-orange-900/30 rounded-lg border border-orange-500/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-orange-200">
-                <Activity className="w-4 h-4" />
-                <span className="text-sm">Unstable Connections</span>
-              </div>
-              <span className="text-slate-100 font-mono text-lg">
-                {unstableConnections}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-3 bg-red-900/30 rounded-lg border border-red-500/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-red-200">
-                <AlertTriangle className="w-4 h-4" />
-                <span className="text-sm">Active Anomalies</span>
-              </div>
-              <span className="text-slate-100 font-mono text-lg">
-                {activeAnomalies}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Alert Thresholds */}
+      {/* Key Metrics Grid */}
+      <div className="grid grid-cols-1 gap-3">
+        {/* Volatility Score */}
         <div className="p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
-          <div className="text-xs font-medium text-slate-300 mb-2">
-            Alert Thresholds
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-3 h-3 text-orange-400" />
+            <span className="text-xs font-medium text-slate-200">
+              Volatility
+            </span>
           </div>
-          <div className="text-xs text-slate-400 space-y-1">
-            <div>• Voltage Variance {">"} 0.5V</div>
-            <div>• Temperature {">"} 40°C</div>
-            <div>• Battery Level {"<"} 30%</div>
-            <div>• Connection Health {"<"} 70%</div>
+          <div className="text-sm font-bold text-orange-400">
+            {connectionMetrics.volatilityScore}V
+          </div>
+          <div className="text-xs text-slate-400">
+            {connectionMetrics.volatilityScore < 2
+              ? "Stable"
+              : connectionMetrics.volatilityScore < 5
+              ? "Moderate"
+              : "High"}
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Anomaly Count */}
+        <div className="p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-3 h-3 text-red-400" />
+            <span className="text-xs font-medium text-slate-200">
+              Anomalies
+            </span>
+          </div>
+          <div className="text-sm font-bold text-red-400">
+            {connectionMetrics.anomalyCount}
+          </div>
+          <div className="text-xs text-slate-400">
+            {connectionMetrics.anomalyCount === 0
+              ? "None detected"
+              : "Issues found"}
+          </div>
+        </div>
+
+        {/* Active Cabinets */}
+        <div className="p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-3 h-3 text-green-400" />
+            <span className="text-xs font-medium text-slate-200">Active</span>
+          </div>
+          <div className="text-sm font-bold text-green-400">
+            {
+              currentData.filter((c) => c.timestamp && c.communication === 1)
+                .length
+            }
+          </div>
+          <div className="text-xs text-slate-400">
+            of {currentData.length} cabinets
+          </div>
+        </div>
+      </div>
+
+      {/* Trending Issues */}
+      {/* {connectionMetrics.trendingIssues.length > 0 && (
+        <div className="p-3 bg-red-900/20 rounded-lg border border-red-500/30">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingDown className="w-3 h-3 text-red-400" />
+            <span className="text-xs font-medium text-red-200">Top Issues</span>
+          </div>
+          <div className="space-y-1">
+            {connectionMetrics.trendingIssues.map((issue, index) => (
+              <div key={index} className="flex justify-between text-xs">
+                <span className="text-red-300">{issue.type}</span>
+                <span className="text-red-400 font-medium">{issue.count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )} */}
+
+      {/* Health Thresholds */}
+      {/* <div className="p-3 bg-slate-700/30 rounded-lg border border-slate-600/30">
+        <div className="text-xs text-slate-400 mb-2">Health Thresholds</div>
+        <div className="space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-green-400">Excellent</span>
+            <span className="text-slate-400">80-100%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-yellow-400">Good</span>
+            <span className="text-slate-400">60-79%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-orange-400">Fair</span>
+            <span className="text-slate-400">40-59%</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-red-400">Poor</span>
+            <span className="text-slate-400">0-39%</span>
+          </div>
+        </div>
+      </div> */}
+    </div>
   );
 }
