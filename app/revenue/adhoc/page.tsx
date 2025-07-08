@@ -81,9 +81,9 @@ export default function AdhocAnalysisPage() {
         if (connections.length > 0) {
           setSelectedConnection(connections[0]);
           // Only auto-advance if we have a connected connection
-          // if (connections[0].status === "connected") {
-          //   setActiveTab("ai-query");
-          // }
+          if (connections[0].status === "connected") {
+            setActiveTab("ai-query");
+          }
         }
       } catch (error) {
         console.error("Error loading connections:", error);

@@ -303,7 +303,7 @@ export default function AIQueryBuilder({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sql: generatedSQL,
-          connectionId: "snowflake_1751536795435",
+          connectionId: "snowflake_1751620346752",
         }),
       });
 

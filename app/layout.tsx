@@ -7,8 +7,7 @@ import DashboardLayout from "@/components/dashboard-layout";
 export const metadata: Metadata = {
   title: "SL-Mobility",
   description: "This is the analytics dashboard for SL-Mobility.",
-  // generator: "v0.dev",
-  generator: "v0.dev",
+  generator: "Safnas Kaldeen",
 };
 
 export default function RootLayout({
