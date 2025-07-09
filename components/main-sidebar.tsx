@@ -287,17 +287,23 @@ export function MainSidebar() {
   ];
 
   return (
-    <Sidebar className="border-r border-slate-800 bg-slate-900 w-64">
-      <SidebarHeader className="p-4 border-b border-slate-800">
-        <div className="flex items-center space-x-2">
-          <Hexagon className="h-8 w-8 text-cyan-500" />
-          <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+    <Sidebar className="border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 w-64 backdrop-blur-sm">
+      <SidebarHeader className="p-4 border-b border-slate-800/60 bg-slate-900/40 backdrop-blur-sm">
+        <div className="flex items-center space-x-2 group">
+          <div className="relative">
+            <Hexagon className="h-8 w-8 text-cyan-500 transition-all duration-300 group-hover:text-cyan-400 group-hover:scale-110" />
+            <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+          <span className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 bg-clip-text text-transparent group-hover:from-cyan-300 group-hover:to-purple-400 transition-all duration-300">
             SL-MOBILITY
           </span>
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="py-2">
+      <SidebarContent className="py-2 relative">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(120,119,198,0.1),transparent_50%)] pointer-events-none" />
+
         {/* Dashboard */}
         <SidebarGroup className="px-2 py-1">
           <SidebarMenu>
@@ -305,23 +311,36 @@ export function MainSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={isActive("/")}
-                className="w-full px-3 py-2 rounded-md transition-colors hover:bg-slate-800"
+                className={`w-full px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm group relative overflow-hidden ${
+                  isActive("/")
+                    ? "bg-blue-500/15 text-blue-400 shadow-sm border border-blue-500/20"
+                    : "hover:bg-slate-800/60 text-slate-300 hover:text-slate-200"
+                }`}
               >
-                <Link href="/" className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center h-6 w-6 rounded-md bg-blue-500/10 text-blue-500">
+                <Link
+                  href="/"
+                  className="flex items-center space-x-3 relative z-10"
+                >
+                  <div
+                    className={`flex items-center justify-center h-6 w-6 rounded-md transition-all duration-200 group-hover:scale-110 ${
+                      isActive("/")
+                        ? "bg-blue-500/20 text-blue-400"
+                        : "bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20"
+                    }`}
+                  >
                     <Home className="h-4 w-4" />
                   </div>
-                  <span>Dashboard</span>
+                  <span className="font-medium">Dashboard</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
 
-        <SidebarSeparator className="my-2 bg-slate-800" />
+        <SidebarSeparator className="my-2 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
 
         {/* Menu Categories */}
-        {menuCategories.map((category) => (
+        {menuCategories.map((category, index) => (
           <Collapsible
             key={category.id}
             open={openGroups[category.id]}
@@ -330,50 +349,66 @@ export function MainSidebar() {
           >
             <SidebarGroup>
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="flex w-full items-center px-3 py-2 rounded-md transition-colors hover:bg-slate-800 cursor-pointer">
-                  <div className="flex flex-1 items-center">
+                <CollapsibleTrigger className="flex w-full items-center px-3 py-2 rounded-lg transition-all duration-200 hover:bg-slate-800/60 hover:shadow-sm cursor-pointer group/trigger relative overflow-hidden">
+                  <div className="flex flex-1 items-center relative z-10">
                     <div
                       className={`flex items-center justify-center h-6 w-6 rounded-md ${category.icon.color.replace(
                         "text-",
                         "bg-"
-                      )}/10 ${category.icon.color} mr-3`}
+                      )}/10 ${
+                        category.icon.color
+                      } mr-3 transition-all duration-200 group-hover/trigger:scale-110 group-hover/trigger:${category.icon.color.replace(
+                        "text-",
+                        "bg-"
+                      )}/20`}
                     >
                       {category.icon.icon}
                     </div>
-                    <span className="font-medium">{category.label}</span>
+                    <span className="font-medium text-slate-200 group-hover/trigger:text-white transition-colors duration-200">
+                      {category.label}
+                    </span>
                   </div>
                   <ChevronDown
                     className={`h-4 w-4 ${
                       category.icon.color
-                    } transition-transform duration-200 ease-in-out ${
+                    } transition-all duration-300 ease-in-out ${
                       openGroups[category.id] ? "rotate-180" : ""
-                    }`}
+                    } group-hover/trigger:scale-110`}
                   />
+                  {/* Subtle hover effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-800/20 to-transparent opacity-0 group-hover/trigger:opacity-100 transition-opacity duration-200 rounded-lg" />
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
 
-              <CollapsibleContent className="overflow-hidden transition-all data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
+              <CollapsibleContent className="overflow-hidden transition-all duration-300 ease-out data-[state=closed]:animate-slideUp data-[state=open]:animate-slideDown">
                 <SidebarGroupContent>
                   <SidebarMenu className="pl-9 mt-1 space-y-1">
-                    {category.items.map((item) => (
+                    {category.items.map((item, itemIndex) => (
                       <SidebarMenuItem key={item.path}>
                         <SidebarMenuButton
                           asChild
                           isActive={isActive(item.path)}
-                          className={`w-full px-3 py-2 rounded-md transition-colors ${
+                          className={`w-full px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm group/item relative overflow-hidden ${
                             isActive(item.path)
                               ? `bg-${
                                   category.icon.color.split("-")[1]
-                                }-500/10 ${category.icon.color}`
-                              : "hover:bg-slate-800 text-slate-300"
+                                }-500/15 ${
+                                  category.icon.color
+                                } shadow-sm border border-${
+                                  category.icon.color.split("-")[1]
+                                }-500/20`
+                              : "hover:bg-slate-800/60 text-slate-300 hover:text-slate-200"
                           }`}
                         >
                           <Link
                             href={item.path}
-                            className="flex items-center space-x-3"
+                            className="flex items-center space-x-3 relative z-10"
+                            style={{ animationDelay: `${itemIndex * 50}ms` }}
                           >
-                            {item.icon}
-                            <span>{item.label}</span>
+                            <div className="transition-all duration-200 group-hover/item:scale-110">
+                              {item.icon}
+                            </div>
+                            <span className="font-medium">{item.label}</span>
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
@@ -385,7 +420,7 @@ export function MainSidebar() {
           </Collapsible>
         ))}
 
-        <SidebarSeparator className="my-2 bg-slate-800" />
+        <SidebarSeparator className="my-2 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
 
         {/* Settings */}
         <SidebarGroup className="px-2 py-1">
@@ -394,13 +429,26 @@ export function MainSidebar() {
               <SidebarMenuButton
                 asChild
                 isActive={isActive("/settings")}
-                className="w-full px-3 py-2 rounded-md transition-colors hover:bg-slate-800"
+                className={`w-full px-3 py-2 rounded-lg transition-all duration-200 hover:shadow-sm group relative overflow-hidden ${
+                  isActive("/settings")
+                    ? "bg-slate-500/15 text-slate-400 shadow-sm border border-slate-500/20"
+                    : "hover:bg-slate-800/60 text-slate-300 hover:text-slate-200"
+                }`}
               >
-                <Link href="/settings" className="flex items-center space-x-3">
-                  <div className="flex items-center justify-center h-6 w-6 rounded-md bg-slate-500/10 text-slate-500">
+                <Link
+                  href="/settings"
+                  className="flex items-center space-x-3 relative z-10"
+                >
+                  <div
+                    className={`flex items-center justify-center h-6 w-6 rounded-md transition-all duration-200 group-hover:scale-110 ${
+                      isActive("/settings")
+                        ? "bg-slate-500/20 text-slate-400"
+                        : "bg-slate-500/10 text-slate-500 group-hover:bg-slate-500/20"
+                    }`}
+                  >
                     <Settings className="h-4 w-4" />
                   </div>
-                  <span>Settings</span>
+                  <span className="font-medium">Settings</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -408,17 +456,27 @@ export function MainSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4 border-t border-slate-800">
-        <div className="flex items-center space-x-3">
-          <Avatar className="h-9 w-9 border border-slate-700">
-            <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-            <AvatarFallback className="bg-slate-800 text-cyan-500">
-              SK
-            </AvatarFallback>
-          </Avatar>
+      <SidebarFooter className="p-4 border-t border-slate-800/60 bg-slate-900/40 backdrop-blur-sm">
+        <div className="flex items-center space-x-3 group cursor-pointer hover:bg-slate-800/40 p-2 rounded-lg transition-all duration-200">
+          <div className="relative">
+            <Avatar className="h-9 w-9 border border-slate-700 transition-all duration-200 group-hover:border-cyan-500/50 group-hover:scale-105">
+              <AvatarImage
+                src="/placeholder.svg?height=32&width=32"
+                alt="User"
+              />
+              <AvatarFallback className="bg-slate-800 text-cyan-500 font-semibold">
+                SK
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute inset-0 bg-cyan-500/20 rounded-full blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium">Safnas Kaldeen</span>
-            <span className="text-xs text-slate-400">Data Analyst</span>
+            <span className="text-sm font-medium text-slate-200 group-hover:text-white transition-colors duration-200">
+              Safnas Kaldeen
+            </span>
+            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors duration-200">
+              Data Analyst
+            </span>
           </div>
         </div>
       </SidebarFooter>
@@ -426,23 +484,27 @@ export function MainSidebar() {
   );
 }
 
-// Add these styles to your globals.css or a component-specific CSS file
+// Add these enhanced styles to your globals.css
 /*
 @keyframes slideDown {
   from {
     height: 0;
+    opacity: 0;
   }
   to {
     height: var(--radix-collapsible-content-height);
+    opacity: 1;
   }
 }
 
 @keyframes slideUp {
   from {
     height: var(--radix-collapsible-content-height);
+    opacity: 1;
   }
   to {
     height: 0;
+    opacity: 0;
   }
 }
 

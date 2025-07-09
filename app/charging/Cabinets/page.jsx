@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CombinedFilters } from "@/components/cabinet/CombinedFilters";
 import { TimelineControls } from "@/components/cabinet/TimelineControls";
 import { CabinetGrid } from "@/components/cabinet/CabinetGrid";
-import { StatusLegend } from "@/components/cabinet/StatusLegend";
 import { AnomalyDetector } from "@/lib/anomaly-detector";
 
 const BatteryStationAnalyzer = () => {
