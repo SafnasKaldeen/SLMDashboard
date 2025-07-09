@@ -24,18 +24,18 @@ export class AnomalyDetector {
     }
 
     // Battery level anomalies
-    if (current.battery < 10 && current.is_battery === 1) {
+    if (current.kwh < 10 && current.is_battery === 1) {
       anomalies.push({
         type: "battery",
         severity: "critical",
-        reason: `Critical battery level: ${current.battery}%`,
+        reason: `Critical battery level: ${current.kwh}%`,
         message: "Battery level is critically low",
       })
-    } else if (current.battery < 20 && current.is_battery === 1) {
+    } else if (current.kwh < 20 && current.is_battery === 1) {
       anomalies.push({
         type: "battery",
         severity: "high",
-        reason: `Low battery level: ${current.battery}%`,
+        reason: `Low battery level: ${current.kwh}%`,
         message: "Battery level is low",
       })
     }
@@ -61,7 +61,17 @@ export class AnomalyDetector {
     }
 
     // Charging anomalies
-    if (current.is_battery === 1 && current.battery < 80 && current.charger_online === 0) {
+    if (current.charger_online === 0) {
+      anomalies.push({
+        type: "charging",
+        severity: "medium",
+        reason: "Charger offline",
+        message: "Charger is offline",
+      })
+    }
+
+    // Charging anomalies
+    if (current.is_battery === 1 && current.kwh < 80 && current.charger_online === 0) {
       anomalies.push({
         type: "charging",
         severity: "medium",
@@ -71,11 +81,11 @@ export class AnomalyDetector {
     }
 
     // Door anomalies
-    if (current.door === 1 && current.is_battery === 1) {
+    if (current.door === 1 && current.is_battery === 1 && current.kwh != 100) {
       anomalies.push({
         type: "security",
         severity: "medium",
-        reason: "Door open with battery present",
+        reason: "Door open with half charged battery present",
         message: "Security concern: door is open",
       })
     }
@@ -114,7 +124,7 @@ export class AnomalyDetector {
     if (previous && previous.timestamp) {
       // Sudden temperature change
       const tempDiff = Math.abs(current.cell_temp - previous.cell_temp)
-      if (tempDiff > 10) {
+      if (tempDiff > 10 && previous.is_battery  === current.is_battery) {
         anomalies.push({
           type: "temperature",
           severity: "medium",
@@ -124,7 +134,7 @@ export class AnomalyDetector {
       }
 
       // Sudden battery level drop
-      const batteryDiff = previous.battery - current.battery
+      const batteryDiff = previous.kwh - current.kwh
       if (batteryDiff > 20 && current.is_battery === 1) {
         anomalies.push({
           type: "battery",
@@ -136,7 +146,7 @@ export class AnomalyDetector {
 
       // Voltage instability
       const voltageDiff = Math.abs(current.v - previous.v)
-      if (voltageDiff > 50) {
+      if (voltageDiff > 50 && previous.is_battery === current.is_battery) {
         anomalies.push({
           type: "voltage",
           severity: "medium",

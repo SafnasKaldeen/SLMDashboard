@@ -14,6 +14,7 @@ import {
   DoorClosed,
   BatteryIcon as BatteryX,
 } from "lucide-react";
+import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -33,18 +34,45 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
       ? Math.max(...voltageValues) - Math.min(...voltageValues)
       : 0;
 
-  // Calculate connection score
-  const connectionScore = cabinet.timestamp
-    ? Math.max(10, Math.round(100 - voltageVariance * 50))
-    : 0;
-
   // Check if battery is present
   const hasBattery = cabinet.is_battery === 1;
   const batteryId =
     cabinet.bid && cabinet.bid.trim() !== "" ? cabinet.bid : null;
 
   // Check charging status
-  const isCharging = cabinet.charger_online === 1 && hasBattery;
+  function getChargingStatus(cabinet, hasBattery) {
+    if (cabinet.charger_online !== 1 || !hasBattery) {
+      return "not_charging";
+    }
+    if (cabinet.door !== 0 && cabinet.kwh !== 100) {
+      // Charger is online, battery present, but door is open
+      return "door opened";
+    }
+    return cabinet.kwh === 100 ? "fully" : "charging";
+  }
+
+  const chargingStatus = getChargingStatus(cabinet, hasBattery);
+
+  const connectionScore = cabinet.timestamp
+    ? Math.max(10, Math.round(100 - voltageVariance * 50))
+    : 0;
+
+  const CabinatScore = useMemo(() => {
+    if (!cabinet.timestamp) return 0;
+
+    const commScore = cabinet.communication ? 30 : 0; // weight: 30%
+    const tempScore = cabinet.cell_temp >= 0 && cabinet.cell_temp < 50 ? 20 : 0; // weight: 20%
+    const anomalyScore =
+      anomalies.length === 0 ? 10 : anomalies.length <= 2 ? 5 : 0; // weight: 10%
+
+    return Math.min(
+      100,
+      connectionScore * 0.4 + // weight: 40%
+        commScore +
+        tempScore +
+        anomalyScore
+    );
+  }, [cabinet, connectionScore, anomalies]);
 
   return (
     <Card
@@ -68,13 +96,23 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
             {cabinet.timestamp && (
               <Badge
                 className={`text-white text-xs font-medium ${
-                  isCharging
-                    ? "bg-green-600 hover:bg-green-700"
+                  chargingStatus === "fully"
+                    ? "bg-blue-600 hover:bg-blue-700"
+                    : chargingStatus === "charging"
+                    ? "bg-yellow-500 hover:bg-yellow-600"
+                    : chargingStatus === "door opened"
+                    ? "bg-red-500 hover:bg-red-600"
                     : "bg-slate-600 hover:bg-slate-700"
                 }`}
               >
                 <Zap className="w-3 h-3 mr-1" />
-                {isCharging ? "Charging" : "Not Charging"}
+                {chargingStatus === "fully"
+                  ? "Fully Charged"
+                  : chargingStatus === "charging"
+                  ? "Charging"
+                  : chargingStatus === "door opened"
+                  ? "door opened"
+                  : "Not Charging"}
               </Badge>
             )}
 
@@ -165,19 +203,19 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                   <div className="flex-1 bg-slate-600 rounded-full h-2">
                     <div
                       className={`h-2 rounded-full transition-all ${
-                        connectionScore >= 90
+                        CabinatScore >= 90
                           ? "bg-green-500"
-                          : connectionScore >= 70
+                          : CabinatScore >= 70
                           ? "bg-yellow-500"
                           : "bg-red-500"
                       }`}
                       style={{
-                        width: `${connectionScore}%`,
+                        width: `${CabinatScore.toFixed(0)}%`,
                       }}
                     />
                   </div>
                   <span className="text-xs font-mono text-slate-100 min-w-[35px]">
-                    {connectionScore}%
+                    {CabinatScore.toFixed(0)}%
                   </span>
                 </div>
               </div>
@@ -224,7 +262,7 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                 <div>
                   <div className="text-slate-300 text-xs">Charge</div>
                   <div className="font-mono text-slate-100 text-xs">
-                    {cabinet.kwh > 0 ? `${cabinet.kwh}%` : "N/A"}
+                    {cabinet.kwh > 0 ? `${cabinet.kwh}%` : "0"}
                   </div>
                 </div>
               </div>
@@ -245,7 +283,7 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                 <div>
                   <div className="text-slate-300 text-xs">Temp</div>
                   <div className="font-mono text-slate-100 text-xs">
-                    {cabinet.cell_temp > 0 ? `${cabinet.cell_temp}°C` : "N/A"}
+                    {cabinet.cell_temp > 0 ? `${cabinet.cell_temp}°C` : "0°"}
                   </div>
                 </div>
               </div>
@@ -264,7 +302,7 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                 <div>
                   <div className="text-slate-300 text-xs">Voltage</div>
                   <div className="font-mono text-slate-100 text-xs">
-                    {cabinet.v > 0 ? `${cabinet.v}V` : "N/A"}
+                    {cabinet.v > 0 ? `${cabinet.v}V` : "0"}
                   </div>
                 </div>
               </div>
@@ -283,7 +321,7 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                 <div>
                   <div className="text-slate-300 text-xs">Current</div>
                   <div className="font-mono text-slate-100 text-xs">
-                    {cabinet.i !== 0 ? `${cabinet.i}A` : "N/A"}
+                    {cabinet.i !== 0 ? `${cabinet.i}A` : "0"}
                   </div>
                 </div>
               </div>
@@ -347,9 +385,9 @@ export function CabinetCard({ cabinet, previous, anomalies, anomalyDetector }) {
                   }`}
                 />
                 <div>
-                  <div className="text-slate-300 text-xs">Energy</div>
+                  <div className="text-slate-300 text-xs">Cabinet Volt</div>
                   <div className="font-mono text-slate-100 text-xs">
-                    {cabinet.battery > 0 ? `${cabinet.battery}%` : "N/A"}
+                    {cabinet.battery > 0 ? `${cabinet.battery}V` : "0"}
                   </div>
                 </div>
               </div>

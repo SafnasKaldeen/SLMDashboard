@@ -120,6 +120,8 @@ const BatteryStationAnalyzer = () => {
     return gridData;
   }, [data, selectedStation, currentTimestamp]);
 
+  const anomalyDetector = new AnomalyDetector();
+
   // Get previous timestamp data for anomaly detection
   const previousData = useMemo(() => {
     if (!selectedStation || currentTimestampIndex === 0) return [];
@@ -218,8 +220,6 @@ const BatteryStationAnalyzer = () => {
       filteredCabinetNos.includes(cabinet.no)
     );
   }, [previousData, filteredCurrentData]);
-
-  const anomalyDetector = new AnomalyDetector();
 
   // Timeline navigation functions
   const goToPrevious = () => {
